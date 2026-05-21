@@ -90,7 +90,7 @@ Source Code                    smeargraph                    Output
 
 1. **Scan** — Walks directories, identifies 14 languages by extension
 2. **Extract** — Parses source code, pulls every class/function/method with docstrings
-3. **Output** — ASCII diagram (default) or structured JSON
+3. **Output** — ASCII diagram, Mermaid class diagram, or structured JSON
 
 ## Installation
 

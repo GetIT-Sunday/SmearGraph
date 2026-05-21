@@ -29,7 +29,7 @@ program
   .command("analyze [rootDir]")
   .description("Analyze a project's architecture and extract component-level symbols")
   .option("-o, --output <path>", "Output file path")
-  .option("-f, --format <format>", "Output format: json | ascii", "ascii")
+  .option("-f, --format <format>", "Output format: json | ascii | mermaid", "ascii")
   .option("-e, --exclude <patterns>", "Glob patterns to exclude", DEFAULT_EXCLUDE)
   .option("-d, --depth <number>", "Max directory nesting depth", "10")
   .action(async (rootDir: string | undefined, options: Record<string, string>) => {
@@ -41,8 +41,8 @@ program
     }
 
     const format = options.format as string;
-    if (!["json", "ascii"].includes(format)) {
-      process.stderr.write(`Error: Invalid format "${format}". Valid: json, ascii\n`);
+    if (!["json", "ascii", "mermaid"].includes(format)) {
+      process.stderr.write(`Error: Invalid format "${format}". Valid: json, ascii, mermaid\n`);
       process.exit(1);
     }
 
