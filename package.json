@@ -1,0 +1,55 @@
+{
+  "name": "cartographer",
+  "version": "1.0.0",
+  "description": "Analyze any codebase and generate beautiful ASCII architecture diagrams. Extract classes, functions, and their relationships — then render them as clean terminal-friendly box diagrams.",
+  "main": "dist/index.js",
+  "bin": {
+    "cartographer": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "agents",
+    "README.md",
+    "README_CN.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "architecture",
+    "code-analysis",
+    "ascii-art",
+    "visualization",
+    "codebase",
+    "cli",
+    "developer-tools",
+    "software-architecture",
+    "reverse-engineering",
+    "documentation"
+  ],
+  "author": "GetIT-Sunday",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GetIT-Sunday/cartographer"
+  },
+  "homepage": "https://github.com/GetIT-Sunday/cartographer#readme",
+  "bugs": {
+    "url": "https://github.com/GetIT-Sunday/cartographer/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0"
+  }
+}
