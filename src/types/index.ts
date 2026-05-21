@@ -128,7 +128,7 @@ export interface RawDependency {
 
 // ─── Output ───────────────────────────────────────────────────
 
-export type OutputFormat = "json" | "ascii" | "mermaid";
+export type OutputFormat = "json" | "ascii";
 
 export interface OutputOptions {
   format: OutputFormat;
