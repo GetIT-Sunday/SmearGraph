@@ -32,46 +32,65 @@ function renderClassDiagram(result: AnalysisResult): string {
     byFile[fname].push(s);
   }
 
-  for (const [fname, symbols] of Object.entries(byFile).slice(0, 20)) {
-    const className = fname.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_");
-    const publicSymbols = symbols.filter((s) => s.isExported || s.kind === "class" || s.kind === "interface");
-    if (publicSymbols.length === 0) continue;
+  const generatedInterfaces = new Set<string>();
 
-    lines.push(`  class ${className} {`);
-    for (const s of publicSymbols.slice(0, 15)) {
-      const sig = symbolSignature(s);
-      const prefix = s.kind === "class" ? "" : s.kind === "interface" ? "«interface» " : "+";
-      lines.push(`    ${prefix}${sig}`);
+  for (const [fname, symbols] of Object.entries(byFile).slice(0, 20)) {
+    const fileNs = sanitizeClassName(fname);
+
+    const classes = symbols.filter((s) => s.kind === "class");
+    const ifaces = symbols.filter((s) => s.kind === "interface");
+    const fns = symbols.filter((s) => s.kind === "function" || s.kind === "method");
+    const others = symbols.filter((s) =>
+      !["class", "interface", "function", "method"].includes(s.kind)
+    );
+
+    for (const cls of classes) {
+      if (cls.name.length <= 2 || /^[a-z]+$/.test(cls.name)) continue;
+      const clsMethods = symbols.filter((s) => s.parentClass === cls.name && s.kind === "method");
+      lines.push(`  class ${sanitizeClassName(cls.name)} {`);
+      for (const m of clsMethods.slice(0, 10)) {
+        lines.push(`    +${m.name.split(".").pop() || m.name}(${formatParams(m)})`);
+      }
+      if (cls.docstring) {
+        lines.push(`    <<${cls.docstring.slice(0, 40)}>>`);
+      }
+      lines.push(`  }`);
     }
-    lines.push(`  }`);
+
+    for (const iface of ifaces) {
+      if (generatedInterfaces.has(iface.name)) continue;
+      generatedInterfaces.add(iface.name);
+      lines.push(`  class ${sanitizeClassName(iface.name)} {`);
+      lines.push(`    <<interface>>`);
+      lines.push(`  }`);
+    }
+
+    if (classes.length === 0 && fns.length > 0) {
+      const nsName = fileNs || `File_${Object.keys(byFile).indexOf(fname)}`;
+      lines.push(`  class ${nsName} {`);
+      for (const fn of fns.slice(0, 15)) {
+        const prefix = fn.isExported ? "+" : "-";
+        lines.push(`    ${prefix}${fn.name}(${formatParams(fn)})`);
+      }
+      lines.push(`  }`);
+    }
   }
 
   lines.push("```");
   return lines.join("\n");
 }
 
-function symbolSignature(s: AnalysisResult["symbols"][0]): string {
-  const params = s.params.map((p) => {
+function sanitizeClassName(name: string): string {
+  return name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
+}
+
+function formatParams(s: AnalysisResult["symbols"][0]): string {
+  return s.params.map((p) => {
     let pStr = p.name;
     if (p.type && p.type !== "any") pStr += `: ${p.type}`;
     if (p.defaultValue) pStr += ` = ${p.defaultValue}`;
     return pStr;
   }).join(", ");
-
-  switch (s.kind) {
-    case "class":
-      return s.extends.length > 0
-        ? `${s.name} --|> ${s.extends.join(", ")}`
-        : s.name;
-    case "method":
-      return `${s.name}(${params})`;
-    case "function":
-      return `${s.name}(${params})${s.returnType ? ` → ${s.returnType}` : ""}`;
-    case "interface":
-      return s.name;
-    default:
-      return s.name;
-  }
 }
 
 function renderDependencyFlowchart(result: AnalysisResult): string {
@@ -98,17 +117,29 @@ function renderDependencyFlowchart(result: AnalysisResult): string {
     lines.push(`  ${id}["${escapeMermaid(label)} (${count})"]`);
   });
 
-  for (const dep of result.rawDeps.slice(0, 60)) {
-    const fromFile = dep.from.split("/").pop() || dep.from;
-    const toFile = dep.to.split("/").pop() || dep.to;
+  const seenEdges = new Set<string>();
+
+  for (const dep of result.rawDeps.slice(0, 80)) {
+    let fromFile = dep.from.split("/").pop() || dep.from;
+    let toFile = dep.to.replace(/^\.\.?\//, "").split("/").pop() || dep.to;
+
+    toFile = toFile.replace(/\.js$/, ".ts").replace(/\.pyc$/, ".py");
+    fromFile = fromFile.replace(/\.js$/, ".ts");
+
+    if (toFile.length <= 4 || fromFile.length <= 4) continue;
+
     const fromId = nodeIds.get(fromFile);
     const toId = nodeIds.get(toFile);
     if (fromId && toId && fromId !== toId) {
-      lines.push(`  ${fromId} --> ${toId}`);
+      const key = `${fromId}->${toId}`;
+      if (!seenEdges.has(key)) {
+        seenEdges.add(key);
+        lines.push(`  ${fromId} --> ${toId}`);
+      }
     }
   }
 
-  if (result.rawDeps.length === 0) {
+  if (seenEdges.size === 0) {
     lines.push("  NOTE[No dependencies detected]");
   }
 
