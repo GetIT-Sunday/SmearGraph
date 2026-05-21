@@ -21,8 +21,8 @@ function readVersion(): string {
 const program = new Command();
 
 program
-  .name("cartographer")
-  .description("Architecture Cartographer — analyze codebase and generate ASCII architecture diagrams")
+  .name("smeargraph")
+  .description("SmearGraph — analyze codebase and generate ASCII architecture diagrams")
   .version(readVersion());
 
 program

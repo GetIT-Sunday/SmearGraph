@@ -1,14 +1,14 @@
-# Cartographer 🗺️
+# SmearGraph 🗺️
 
 > Analyze any codebase and generate beautiful ASCII architecture diagrams.
 
-Cartographer scans your project, extracts every class, function, and method (with docstrings), then helps you understand the architecture — either via raw JSON or clean ASCII box diagrams.
+SmearGraph scans your project, extracts every class, function, and method (with docstrings), then helps you understand the architecture — either via raw JSON or clean ASCII box diagrams.
 
 ## Quick Start
 
 ```bash
-npm install -g cartographer
-cartographer analyze ./my-project
+npm install -g smeargraph
+smeargraph analyze ./my-project
 ```
 
 **That's it.** You get an ASCII architecture diagram printed to your terminal.
@@ -27,22 +27,22 @@ cartographer analyze ./my-project
 
 ```bash
 # Analyze current directory, print ASCII diagram
-cartographer analyze
+smeargraph analyze
 
 # Analyze a specific project
-cartographer analyze ~/projects/my-app
+smeargraph analyze ~/projects/my-app
 
 # Output JSON for AI agents / programmatic use
-cartographer analyze . -f json -o analysis.json
+smeargraph analyze . -f json -o analysis.json
 
 # Save ASCII diagram to file
-cartographer analyze . -f ascii -o architecture.txt
+smeargraph analyze . -f ascii -o architecture.txt
 
 # Exclude patterns
-cartographer analyze . -e "node_modules,dist,tests,docs"
+smeargraph analyze . -e "node_modules,dist,tests,docs"
 
 # Limit depth
-cartographer analyze . -d 3
+smeargraph analyze . -d 3
 ```
 
 ### Output Example
@@ -85,7 +85,7 @@ cartographer analyze . -d 3
 
 ## AI Agent Integration
 
-Cartographer is designed to work with AI coding agents. Each platform needs a thin config:
+SmearGraph is designed to work with AI coding agents. Each platform needs a thin config:
 
 | Platform | Config File | How to Use |
 |----------|------------|------------|
@@ -94,7 +94,7 @@ Cartographer is designed to work with AI coding agents. Each platform needs a th
 | **Codex (OpenAI)** | `agents/codex.md` | Import as custom skill |
 
 The agent workflow:
-1. Run `cartographer analyze <project> -f json` to extract symbols
+1. Run `smeargraph analyze <project> -f json` to extract symbols
 2. Read the JSON to understand classes, functions, and their docstrings
 3. Group symbols into logical components
 4. Trace data flows between components
@@ -103,11 +103,11 @@ The agent workflow:
 ## Install from Source
 
 ```bash
-git clone https://github.com/GetIT-Sunday/cartographer.git
-cd cartographer
+git clone https://github.com/GetIT-Sunday/SmearGraph.git
+cd smeargraph
 npm install
 npm run build
-npm link  # makes 'cartographer' available globally
+npm link  # makes 'smeargraph' available globally
 ```
 
 ## License

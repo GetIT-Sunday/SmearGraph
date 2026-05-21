@@ -1,14 +1,14 @@
-# Cartographer 🗺️
+# SmearGraph 🗺️
 
 > 分析任意代码库，生成精美的 ASCII 架构图。
 
-Cartographer 扫描你的项目，提取每个类、函数和方法（含文档注释），然后帮你理解架构——通过原始 JSON 或干净的 ASCII 框图。
+SmearGraph 扫描你的项目，提取每个类、函数和方法（含文档注释），然后帮你理解架构——通过原始 JSON 或干净的 ASCII 框图。
 
 ## 快速开始
 
 ```bash
-npm install -g cartographer
-cartographer analyze ./my-project
+npm install -g smeargraph
+smeargraph analyze ./my-project
 ```
 
 **就这么简单。**终端直接输出 ASCII 架构图。
@@ -27,22 +27,22 @@ cartographer analyze ./my-project
 
 ```bash
 # 分析当前目录，输出 ASCII 图
-cartographer analyze
+smeargraph analyze
 
 # 分析指定项目
-cartographer analyze ~/projects/my-app
+smeargraph analyze ~/projects/my-app
 
 # 输出 JSON 给 AI Agent 使用
-cartographer analyze . -f json -o analysis.json
+smeargraph analyze . -f json -o analysis.json
 
 # 保存 ASCII 图到文件
-cartographer analyze . -f ascii -o architecture.txt
+smeargraph analyze . -f ascii -o architecture.txt
 
 # 排除目录
-cartographer analyze . -e "node_modules,dist,tests,docs"
+smeargraph analyze . -e "node_modules,dist,tests,docs"
 
 # 限制扫描深度
-cartographer analyze . -d 3
+smeargraph analyze . -d 3
 ```
 
 ## 支持的语言
@@ -65,7 +65,7 @@ cartographer analyze . -d 3
 
 ## AI Agent 集成
 
-Cartographer 专为 AI 编程 Agent 设计。每个平台只需一份薄配置：
+SmearGraph 专为 AI 编程 Agent 设计。每个平台只需一份薄配置：
 
 | 平台 | 配置文件 | 使用方式 |
 |------|---------|----------|
@@ -74,7 +74,7 @@ Cartographer 专为 AI 编程 Agent 设计。每个平台只需一份薄配置�
 | **Codex (OpenAI)** | `agents/codex.md` | 作为自定义 skill 导入 |
 
 Agent 工作流：
-1. 运行 `cartographer analyze <project> -f json` 提取符号
+1. 运行 `smeargraph analyze <project> -f json` 提取符号
 2. 读取 JSON 理解类、函数及其文档
 3. 将符号分组为逻辑组件
 4. 追踪组件间的数据流
@@ -83,8 +83,8 @@ Agent 工作流：
 ## 从源码安装
 
 ```bash
-git clone https://github.com/GetIT-Sunday/cartographer.git
-cd cartographer
+git clone https://github.com/GetIT-Sunday/SmearGraph.git
+cd smeargraph
 npm install
 npm run build
 npm link  # 全局可用

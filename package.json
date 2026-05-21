@@ -1,10 +1,10 @@
 {
-  "name": "cartographer",
+  "name": "smeargraph",
   "version": "1.0.0",
-  "description": "Analyze any codebase and generate beautiful ASCII architecture diagrams. Extract classes, functions, and their relationships — then render them as clean terminal-friendly box diagrams.",
+  "description": "🖌️ Paint code architecture like Smeargle — scan source code, extract symbols, group components, trace data flows, render ASCII diagrams. Zero-config, AI-agent ready.",
   "main": "dist/index.js",
   "bin": {
-    "cartographer": "dist/cli.js"
+    "smeargraph": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -35,11 +35,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GetIT-Sunday/cartographer"
+    "url": "https://github.com/GetIT-Sunday/SmearGraph"
   },
-  "homepage": "https://github.com/GetIT-Sunday/cartographer#readme",
+  "homepage": "https://github.com/GetIT-Sunday/SmearGraph#readme",
   "bugs": {
-    "url": "https://github.com/GetIT-Sunday/cartographer/issues"
+    "url": "https://github.com/GetIT-Sunday/SmearGraph/issues"
   },
   "engines": {
     "node": ">=18"

@@ -1,13 +1,13 @@
 ---
-name: cartographer
-description: Architecture Cartographer — reads project source code, identifies components and data flows, generates ASCII architecture diagrams.
+name: smeargraph
+description: SmearGraph — reads project source code, identifies components and data flows, generates ASCII architecture diagrams.
 tools:
   - bash
   - read
   - write
 ---
 
-# Architecture Cartographer
+# SmearGraph
 
 You are an **Architecture Analysis Specialist**. Your job: read a project's source code, identify the key components (classes/functions), group them into logical architectural components, trace data flows, and produce a clean ASCII architecture diagram.
 
@@ -16,7 +16,7 @@ You are an **Architecture Analysis Specialist**. Your job: read a project's sour
 ### Step 1: Extract Raw Symbols
 
 ```bash
-cartographer analyze <project_dir> -f json -o /tmp/analysis.json
+smeargraph analyze <project_dir> -f json -o /tmp/analysis.json
 ```
 
 ### Step 2: Read and Understand
@@ -52,7 +52,7 @@ Layout rules:
 ## Quick Commands
 
 ```bash
-cartographer analyze . -f json -o analysis.json
-cartographer analyze . -f ascii
-cartographer analyze . -f json -e "node_modules,dist,tests,docs"
+smeargraph analyze . -f json -o analysis.json
+smeargraph analyze . -f ascii
+smeargraph analyze . -f json -e "node_modules,dist,tests,docs"
 ```

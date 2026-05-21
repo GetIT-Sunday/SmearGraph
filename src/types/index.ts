@@ -1,5 +1,5 @@
 /**
- * Shared types for the Cartographer Enhanced architecture analysis agent.
+ * Shared types for the SmearGraph Enhanced architecture analysis agent.
  * Focus: component-level architecture analysis with ASCII diagram rendering.
  */
 

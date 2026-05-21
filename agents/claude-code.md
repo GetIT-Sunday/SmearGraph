@@ -1,4 +1,4 @@
-# Cartographer — Architecture Analysis
+# SmearGraph — Architecture Analysis
 
 ## Description
 
@@ -14,15 +14,15 @@ Analyze any codebase and generate ASCII architecture diagrams. This skill scans 
 
 ### Step 1: Extract symbols
 
-Run the cartographer CLI to get structured data:
+Run the smeargraph CLI to get structured data:
 
 ```bash
-cartographer analyze <project_dir> -f json -o /tmp/cartographer_analysis.json
+smeargraph analyze <project_dir> -f json -o /tmp/smeargraph_analysis.json
 ```
 
 ### Step 2: Read the JSON
 
-Read `/tmp/cartographer_analysis.json`. Key fields:
+Read `/tmp/smeargraph_analysis.json`. Key fields:
 - `symbols[].name` — class/function name
 - `symbols[].kind` — class, function, method, interface
 - `symbols[].docstring` — what it does
@@ -73,5 +73,5 @@ Layout:
 ## Installation
 
 ```bash
-npm install -g cartographer
+npm install -g smeargraph
 ```
