@@ -27,17 +27,17 @@ smeargraph analyze ./your-project
   Analyzed 966 files · 172,644 LOC · 4,960 symbols
 
 ┌──────────────────────────────────────────────────────────────┐
-│                          BioGSP                               │
+│                          BioGSP                              │
 │                                                              │
 │  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐      │
 │  │SGWT Init     │   │Graph Builder │   │Wavelet Engine│      │
 │  │initSGWT()    │──▶│runSpecGraph()│◀──│sgwt_kernels()│      │
-│  │- 创建SGWT对象 │   │- k-NN邻接图  │   │- MexicanHat  │      │
+│  │- 创建SGWT对象 │   │- k-NN邻接图   │   │- MexicanHat  │      │
 │  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘      │
-│         │                  │                  │               │
-│         ▼                  ▼                  ▼               │
+│         │                  │                  │              │
+│         ▼                  ▼                  ▼              │
 │  ┌─────────────────────────────────────────────────────┐     │
-│  │              SGWT Transformer                        │     │
+│  │              SGWT Transformer                       │     │
 │  │  sgwt_forward() → sgwt_inverse() → runSGCC()        │     │
 │  └─────────────────────────────────────────────────────┘     │
 │                                                              │
@@ -79,7 +79,7 @@ Source Code                    smeargraph                    Output
   ├── scanner.ts               detects language by           │ Diagram      │
   └── index.ts                 extension (.ts→TS, .py→Py)    │              │
                                                              │ or           │
-                              2. Parser                       │              │
+                              2. Parser                      │              │
                                Extracts classes, functions,  │ JSON         │
                                methods, docstrings, params   │ (symbols[])  │
                                                              └──────────────┘
