@@ -12,7 +12,6 @@ const LANG_MAP: Record<string, string> = {
   ".scala": "scala", ".ex": "elixir", ".exs": "elixir", ".lua": "lua",
   ".r": "r", ".R": "r", ".Rmd": "rmarkdown",
 };
-
 const CODE_EXTENSIONS = new Set(Object.keys(LANG_MAP));
 
 function matchesExclude(relativePath: string, patterns: string[]): boolean {
@@ -26,45 +25,29 @@ function matchesExclude(relativePath: string, patterns: string[]): boolean {
   }
   return false;
 }
-
-function countLOC(content: string): number {
-  return content.split("\n").filter((line) => line.trim().length > 0).length;
-}
+function countLOC(content: string): number { return content.split("\n").filter(l => l.trim().length > 0).length; }
 
 export function scanProject(options: AnalyzerOptions): SourceFile[] {
   const rootDir = path.resolve(options.rootDir);
   if (!fs.existsSync(rootDir) || !fs.statSync(rootDir).isDirectory()) return [];
-
   const files: SourceFile[] = [];
-
   function walk(dir: string, depth: number) {
     if (depth > options.maxDepth) return;
-    let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
-    catch { return; }
-
+    let entries: fs.Dirent[]; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       const relPath = path.relative(rootDir, fullPath);
       if (matchesExclude(relPath, options.exclude)) continue;
-
-      if (entry.isDirectory()) {
-        walk(fullPath, depth + 1);
-      } else if (entry.isFile()) {
+      if (entry.isDirectory()) { walk(fullPath, depth + 1); }
+      else if (entry.isFile()) {
         const ext = path.extname(entry.name);
         if (!CODE_EXTENSIONS.has(ext)) continue;
         const language = LANG_MAP[ext];
         if (options.languages.length > 0 && !options.languages.includes(language)) continue;
-
-        let content = "";
-        try { content = fs.readFileSync(fullPath, "utf-8"); }
-        catch { continue; }
-
+        let content = ""; try { content = fs.readFileSync(fullPath, "utf-8"); } catch { continue; }
         files.push({ path: fullPath, relativePath: relPath, language, loc: countLOC(content) });
       }
     }
   }
-
-  walk(rootDir, 0);
-  return files;
+  walk(rootDir, 0); return files;
 }
