@@ -39,7 +39,7 @@ export function renderInteractiveHTML(result: AnalysisResult): string {
     ".detail .label{color:var(--dim);font-size:10px;text-transform:uppercase;margin-bottom:1px}\n" +
     ".detail .val{font-size:12px}\n" +
     ".docstring{color:var(--dim);font-style:italic;margin-top:4px;line-height:1.4;font-size:11px}\n" +
-    ".node-tooltip{position:absolute;padding:7px 10px;background:var(--surface);border:1px solid var(--accent);border-radius:6px;font-size:11px;pointer-events:none;z-index:100;display:none;max-width:260px;box-shadow:0 4px 12px rgba(0,0,0,.4)}\n" +
+    ".node-tooltip{position:absolute;padding:7px 10px;background:#161b22;border:1px solid var(--accent);border-radius:6px;font-size:11px;pointer-events:none;z-index:100;display:none;max-width:260px;box-shadow:0 4px 12px rgba(0,0,0,.4);color:#c9d1d9}\n" +
     "</style>\n</head>\n<body>\n" +
     "<div class=\"sidebar\"><div class=\"sidebar-header\"><h1>" + escapeHtml(result.projectName) + "</h1><div class=\"stats\">" + result.stats.totalFiles + " files · " + result.stats.totalLOC.toLocaleString() + " LOC · " + result.stats.totalSymbols + " symbols</div></div>\n" +
     "<div class=\"search-box\"><input type=\"text\" id=\"search\" placeholder=\"Search files...\" oninput=\"filterNodes(this.value)\"></div>\n" +
