@@ -1,74 +1,80 @@
-import type { AnalysisResult, CodeSymbol, Component, DataFlow } from "../types/index.js";
+import { buildComponents, buildEdges, type CompNode, type CompEdge } from "../analyzer/components.js";
+import type { AnalysisResult } from "../types/index.js";
 
-interface BoxLayout { name: string; description: string; details: string[]; width: number; height: number; x: number; y: number; }
+const A = (code: number) => (s: string) => `\x1b[${code}m${s}\x1b[0m`;
+const bold = A(1), dim = A(2), red = A(31), green = A(32), yellow = A(33), blue = A(34), magenta = A(35), cyan = A(36), white = A(37);
+const colorFn: Record<number, (s: string) => string> = { 0: blue, 1: green, 2: yellow, 3: red, 4: magenta, 5: cyan, 6: white, 7: (s: string) => s };
 
-function wrapText(text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/); const lines: string[] = []; let current = "";
-  for (const word of words) { const test = current ? current+" "+word : word; if (test.length <= maxWidth) current = test; else { if (current) lines.push(current); current = word; } }
-  if (current) lines.push(current); return lines;
+export function analyzeAndRender(result: AnalysisResult): string {
+  const comps = buildComponents(result);
+  const edges = buildEdges(result, comps);
+  if (comps.length === 0) return renderSymbolFallback(result);
+  return renderArchDiagram(result, comps, edges);
 }
 
-const BOX_WIDTH = 58;
+function renderArchDiagram(result: AnalysisResult, comps: CompNode[], edges: CompEdge[]): string {
+  const W = 76;
+  const hr = "─".repeat(W - 2);
+  const lines: string[] = [];
+  const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - stripAnsi(s).length));
 
-function layoutBoxes(components: Component[], dataFlows: DataFlow[]): BoxLayout[] {
-  const primary = components.filter(c => c.isPrimary); const secondary = components.filter(c => !c.isPrimary);
-  if (primary.length === 0 && components.length > 0) { primary.push(components[0]); secondary.splice(secondary.indexOf(components[0]),1); }
-  const boxes: BoxLayout[] = [];
-  const details = (c: Component): string[] => c.responsibilities.map(r => "- "+r).concat(c.symbols.length>0&&c.symbols.length<=6?c.symbols.map(s=>"  "+s.name+"("+s.kind+")"):c.symbols.length>6?["  "+c.symbols.length+" symbols"]:[]).flatMap(l=>wrapText(l,BOX_WIDTH-6));
-  let x=2,y=1;
-  for (const comp of primary) { const d=details(comp); const dl=wrapText(comp.description,BOX_WIDTH-6); boxes.push({name:comp.name,description:comp.description,details:d,width:BOX_WIDTH,height:2+dl.length+(d.length>0?1+d.length:0),x,y}); x+=BOX_WIDTH+4; }
-  x=2; y+=boxes.reduce((m,b)=>Math.max(m,b.height),0)+2;
-  for (const comp of secondary.slice(0,8)) { const d=details(comp); const dl=wrapText(comp.description,BOX_WIDTH-6); const w=Math.max(28,Math.min(BOX_WIDTH,comp.name.length+10)); boxes.push({name:comp.name,description:comp.description,details:d,width:w,height:2+dl.length+(d.length>0?1+d.length:0),x,y}); x+=w+4; if (x>100) { x=2; y+=boxes[boxes.length-1].height+2; } }
-  return boxes;
-}
+  lines.push("┌" + hr + "┐");
+  lines.push("│  " + bold(blue(result.projectName)));
 
-function buildGrid(boxes: BoxLayout[]): { grid: string[][]; width: number; height: number } {
-  const maxX = boxes.reduce((m,b)=>Math.max(m,b.x+b.width),0)+2; const maxY = boxes.reduce((m,b)=>Math.max(m,b.y+b.height),0)+2;
-  const grid: string[][] = Array.from({length:maxY+1},()=>Array(maxX+1).fill(" "));
-  for (const box of boxes) {
-    for (let dx=1;dx<box.width-1;dx++) grid[box.y][box.x+dx]="─";
-    for (let dx=1;dx<box.width-1;dx++) grid[box.y+box.height-1][box.x+dx]="─";
-    for (let dy=1;dy<box.height-1;dy++) grid[box.y+dy][box.x]="│";
-    for (let dy=1;dy<box.height-1;dy++) grid[box.y+dy][box.x+box.width-1]="│";
-    grid[box.y][box.x]="┌"; grid[box.y][box.x+box.width-1]="┐";
-    grid[box.y+box.height-1][box.x]="└"; grid[box.y+box.height-1][box.x+box.width-1]="┘";
-    let ly=box.y+1;
-    const nt=box.name.length<=box.width-4?box.name:box.name.slice(0,box.width-7)+"...";
-    for (let i=0;i<nt.length;i++) grid[ly][box.x+Math.floor((box.width-nt.length)/2)+i]=nt[i]; ly++;
-    for (const l of wrapText(box.description,box.width-4)) { for (let i=0;i<l.length;i++) grid[ly][box.x+2+i]=l[i]; ly++; }
-    if (box.details.length>0) { ly++; for (const d of box.details) { if (ly>=box.y+box.height-1) break; for (let i=0;i<d.slice(0,box.width-4).length;i++) grid[ly][box.x+2+i]=d[i]; ly++; } }
+  lines.push("├" + hr + "┤");
+  lines.push("│  " + bold("Components") + " ".repeat(20) + dim(`${comps.length} groups · ${result.stats.totalFiles} files · ${result.stats.totalLOC.toLocaleString()} LOC`) + " ".repeat(Math.max(0, W - 45 - `${comps.length}${result.stats.totalFiles}${result.stats.totalLOC}`.length)));
+  lines.push("│");
+
+  let maxR = 0;
+  for (let i = 0; i < comps.length; i++) {
+    const c = comps[i];
+    const color = colorFn[i % 8] || ((s: string) => s);
+    const depsIn = edges.filter(e => e.target === i).map(e => comps[e.source].name);
+    const depsOut = edges.filter(e => e.source === i).map(e => comps[e.target].name);
+    const icon = c.name.includes("Entry") || c.name.includes("CLI") ? "▶" : "■";
+    const left = `│  ${color(icon)} ${bold(c.name)}`;
+    const right = dim(`${c.files}f · ${c.symbols}s`);
+    const rlen = Math.max(right.length, depsOut.map(d => ("→ " + d).length).reduce((m, l) => Math.max(m, l), 0));
+    maxR = Math.max(maxR, rlen);
+    const spacing = Math.max(2, W - stripAnsi(left).length - rlen - 4);
+    lines.push(left + " ".repeat(spacing) + right);
+    if (depsOut.length > 0) {
+      for (const d of depsOut.slice(0, 3)) {
+        const arrow = dim("──→ ") + (colorFn[comps.findIndex(x => x.name === d) % 8] || ((s: string) => s))(d);
+        lines.push("│" + " ".repeat(stripAnsi(left).length) + " ".repeat(spacing - 4) + arrow);
+      }
+    }
   }
-  return {grid,width:maxX,height:maxY};
+
+  if (edges.length > 0) {
+    lines.push("│");
+    lines.push("├" + hr + "┤");
+    lines.push("│  " + bold("Dependency Summary"));
+    const shown = new Set<string>();
+    for (const e of edges) {
+      const key = comps[e.source].name + "→" + comps[e.target].name;
+      if (shown.has(key)) continue;
+      shown.add(key);
+      const sc = colorFn[e.source % 8] || ((s: string) => s);
+      const tc = colorFn[e.target % 8] || ((s: string) => s);
+      lines.push("│    " + sc(comps[e.source].name) + " " + dim("──→") + " " + tc(comps[e.target].name));
+    }
+  }
+
+  lines.push("└" + hr + "┘");
+  return lines.join("\n");
 }
 
-function drawFlowArrow(grid:string[][],x1:number,y1:number,x2:number,y2:number,flow:DataFlow):void {
-  if (Math.abs(x2-x1)>Math.abs(y2-y1)) { const d=x2>x1?1:-1; for(let x=x1+d;x!==x2;x+=d){if(grid[y1]?.[x]===" ")grid[y1][x]="─";} grid[y2][x2]=d>0?"▶":"◀"; if(y2!==y1){for(let y=Math.min(y1,y2)+1;y<Math.max(y1,y2);y++){if(grid[y]?.[x2-d]===" ")grid[y][x2-d]="│";} grid[Math.min(y1,y2)][x2-d]=y2>y1?"┌":"└"; grid[Math.max(y1,y2)][x2-d]=y2>y1?"└":"┌";} }
-  else { const d=y2>y1?1:-1; for(let y=y1+d;y!==y2;y+=d){if(grid[y]?.[x1]===" ")grid[y][x1]="│";} grid[y2][x2]=d>0?"▼":"▲"; if(x2!==x1){for(let x=Math.min(x1,x2)+1;x<Math.max(x1,x2);x++){if(grid[y2-d]?.[x]===" ")grid[y2-d][x]="─";} const mx=Math.min(x1,x2);grid[y2-d][mx]=x2>x1?"└":"┘";grid[y2-d][Math.max(x1,x2)]=x2>x1?"┐":"┌";} }
-  const label=flow.description||flow.dataType; if(label&&label.length<20){const mx=Math.floor((x1+x2)/2),my=Math.floor((y1+y2)/2);for(let i=0;i<label.length;i++)grid[my][mx+i-Math.floor(label.length/2)]=label[i];}
+function renderSymbolFallback(result: AnalysisResult): string {
+  const lines: string[] = [];
+  lines.push("┌" + "─".repeat(68) + "┐");
+  lines.push("│  " + bold(result.projectName).padEnd(74) + "│");
+  lines.push("│  " + dim(result.stats.totalFiles + " files · " + result.stats.totalLOC + " LOC").padEnd(74) + "│");
+  for (const s of result.symbols.filter(s => s.isExported || s.kind === "class").slice(0, 12)) {
+    lines.push("│  " + ("[" + s.kind + "] " + s.name).slice(0, 64).padEnd(66) + "│");
+  }
+  lines.push("└" + "─".repeat(68) + "┘");
+  return lines.join("\n");
 }
 
-export function renderAsciiDiagram(result:AnalysisResult,components:Component[],dataFlows:DataFlow[]):string {
-  const boxes=layoutBoxes(components,dataFlows); const {grid,width,height}=buildGrid(boxes);
-  for (const flow of dataFlows) { const fb=boxes.find(b=>b.name===flow.from),tb=boxes.find(b=>b.name===flow.to); if(fb&&tb) drawFlowArrow(grid,fb.x+(fb.x+fb.width<=tb.x?fb.width:fb.x>tb.x+tb.width?-1:Math.floor(fb.width/2)),fb.y+(fb.y+fb.height<=tb.y?fb.height-0:fb.y>tb.y+tb.height?0:Math.floor(fb.height/2)),tb.x+(fb.x+fb.width<=tb.x?-1:tb.x>tb.x+tb.width?tb.width:Math.floor(tb.width/2)),tb.y+(fb.y+fb.height<=tb.y?0:tb.y>tb.y+tb.height?tb.height-0:Math.floor(tb.height/2)),flow); }
-  const lines:string[]=[];
-  for (let y=0;y<=height;y++) lines.push(grid[y].slice(0,width+1).join("").replace(/\s+$/,""));
-  const header="┌"+"─".repeat(Math.min(width-2,68))+"┐";
-  const title="│  "+result.projectName.padEnd(Math.min(width-2,68)-4)+"  │";
-  const statsLine=result.stats.totalFiles+" files · "+result.stats.totalLOC.toLocaleString()+" LOC · "+result.stats.totalSymbols+" symbols";
-  const footer="│  "+statsLine.padEnd(Math.min(width-2,68)-4)+"│";
-  return [header,title,"│"+" ".repeat(Math.min(width-2,68))+"│",...lines.map(l=>"│ "+l),footer,"└"+"─".repeat(Math.min(width-2,68))+"┘"].join("\n");
-}
-
-export function analyzeAndRender(result:AnalysisResult,components:Component[],dataFlows:DataFlow[]):string {
-  if (components.length===0) return renderSymbolList(result);
-  return renderAsciiDiagram(result,components,dataFlows);
-}
-
-function renderSymbolList(result:AnalysisResult):string {
-  const lines:string[]=[];
-  lines.push("┌"+"─".repeat(58)+"┐"); lines.push("│  "+result.projectName.padEnd(56)+"│"); lines.push("├"+"─".repeat(58)+"┤");
-  for (const s of result.symbols.slice(0,20)) { const doc=s.docstring.slice(0,40); lines.push("│  "+("["+s.kind+"] "+s.name).slice(0,54).padEnd(54)+"  │"); }
-  if (result.symbols.length>20) lines.push("│  ... and "+(result.symbols.length-20)+" more symbols"+" ".repeat(20)+"│");
-  lines.push("│"+" ".repeat(58)+"│"); lines.push("│  Stats: "+result.stats.totalFiles+" files · "+result.stats.totalLOC+" LOC"+" ".repeat(14)+"│");
-  lines.push("└"+"─".repeat(58)+"┘"); return lines.join("\n");
-}
+function stripAnsi(s: string): string { return s.replace(/\x1b\[\d+m/g, ""); }

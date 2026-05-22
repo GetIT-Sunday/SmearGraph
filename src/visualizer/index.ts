@@ -9,7 +9,7 @@ export async function renderOutput(result: AnalysisResult, options: OutputOption
   const writeFile = (p: string, c: string) => { const d = path.dirname(p); if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(p, c, "utf-8"); return p; };
   switch (format) {
     case "json": { const json = JSON.stringify(result, null, 2); return outputPath ? writeFile(outputPath, json) : json; }
-    case "ascii": { const ascii = analyzeAndRender(result, result.components, result.dataFlows); return outputPath ? writeFile(outputPath, ascii) : ascii; }
+    case "ascii": { const ascii = analyzeAndRender(result); return outputPath ? writeFile(outputPath, ascii) : ascii; }
     case "html": { const html = renderInteractiveHTML(result); return outputPath ? writeFile(outputPath, html) : html; }
     default: throw new Error("Unsupported format: " + format);
   }
