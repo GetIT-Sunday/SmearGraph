@@ -52,7 +52,7 @@ export function renderInteractiveHTML(result: AnalysisResult): string {
     "const rawData=" + JSON.stringify({ nodes, edges, stats: result.stats }) + ";\n" +
     "const colorMap={entry:'var(--green)',module:'var(--accent)',util:'var(--orange)',config:'var(--dim)'};\n" +
     "const nodes=rawData.nodes.map((n,i)=>({...n,id:i}));\n" +
-    "const links=rawData.edges.map(e=>({source:nodes.findIndex(n=>n.path===e.from),target:nodes.findIndex(n=>n.path===e.to)})).filter(e=>e.source>=0&&e.target>=0&&e.source!==e.target);\n" +
+    "const links=rawData.edges.map(e=>{let si=nodes.findIndex(n=>n.path===e.from);if(si<0){const alt=e.from.replace(/\/__init__\.py$/,\"\")+\"/__init__.py\";si=nodes.findIndex(n=>n.path===e.from.replace(/\/$/,\"\")+\"/__init__.py\"||n.path===e.from+\"/__init__.py\"||n.path===e.from+\".py\");if(si<0)si=nodes.findIndex(n=>n.path===e.from.replace(\".py\",\"\")+\"/__init__.py\")}let ti=nodes.findIndex(n=>n.path===e.to);if(ti<0){ti=nodes.findIndex(n=>n.path===e.to.replace(/\/$/,\"\")+\"/__init__.py\"||n.path===e.to+\"/__init__.py\"||n.path===e.to+\".py\")}return{source:si,target:ti}}).filter(e=>e.source>=0&&e.target>=0&&e.source!==e.target);\n" +
     "const svg=d3.select('#graph');const W=()=>document.getElementById('graph').clientWidth;const H=()=>document.getElementById('graph').clientHeight;\n" +
     "svg.attr('width',W()).attr('height',H());\n" +
     "const g=svg.append('g');const zoom=d3.zoom().scaleExtent([0.1,4]).on('zoom',e=>g.attr('transform',e.transform));svg.call(zoom);svg.call(zoom.transform,d3.zoomIdentity.translate(W()/2,H()/2));\n" +
@@ -88,6 +88,10 @@ function buildNodes(result: AnalysisResult): HtmlNode[] {
   for (const f of result.symbols) {
     if (byFile[f.filePath]) byFile[f.filePath].loc = Math.max(byFile[f.filePath].loc, 1);
   }
+  for (const d of result.rawDeps) {
+    if (d.from && !byFile[d.from]) byFile[d.from] = { loc: 0, symbols: 0, category: "module", docstring: "" };
+  }
+
   return Object.entries(byFile).map(([path, info]) => {
     const name = path.split("/").pop() || path;
     let category = "module";
@@ -100,10 +104,53 @@ function buildNodes(result: AnalysisResult): HtmlNode[] {
 
 function buildEdges(result: AnalysisResult): HtmlEdge[] {
   const seen = new Set<string>();
+  const nodePaths = new Set<string>();
+  for (const s of result.symbols) nodePaths.add(s.filePath);
+
+  const PYTHON_BUILTINS = new Set([
+    "os","sys","re","json","math","time","datetime","collections","itertools","functools",
+    "typing","io","pathlib","shutil","subprocess","argparse","logging","unittest","abc",
+    "dataclasses","enum","hashlib","random","csv","copy","tempfile","threading","warnings",
+    "ast","textwrap","urllib","http","xml","email","base64","uuid","pickle","struct","socket",
+    "traceback","inspect","types","contextlib","string","pprint","weakref","operator",
+    "__future__","numpy","np","pandas","pd","torch","tensorflow","tf","sklearn",
+    "matplotlib","seaborn","scipy","matplotlib.pyplot","plt",
+  ]);
+
   return result.rawDeps
     .filter(d => d.from && d.to)
-    .filter(d => { const key = d.from + "|||" + d.to; if (seen.has(key)) return false; seen.add(key); return true; })
-    .map(d => ({ from: d.from, to: d.to }));
+    .filter(d => {
+      const key = d.from + "|||" + d.to;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map(d => {
+      let toPath = d.to;
+      if (PYTHON_BUILTINS.has(toPath.split(".")[0])) return null;
+      if (toPath.startsWith(".")) {
+        const fromDir = d.from.substring(0, d.from.lastIndexOf("/"));
+        const base = fromDir.split("/");
+        if (toPath.includes("/")) {
+          for (const p of toPath.split("/")) {
+            if (p === "..") base.pop();
+            else if (p !== ".") base.push(p);
+          }
+        } else {
+          const pkg = toPath.replace(/^\.+/, "");
+          if (pkg) base.push(pkg + ".py");
+        }
+        toPath = base.join("/");
+      } else if (!toPath.includes("/") && !toPath.startsWith("/")) {
+        return null;
+      }
+      if (!toPath.startsWith("/")) {
+        toPath = result.projectRoot + "/" + toPath;
+      }
+      toPath = toPath.replace(/\.js$/, ".ts").replace(/\.jsx$/, ".tsx").replace(/\.pyc$/, ".py");
+      return { from: d.from, to: toPath };
+    })
+    .filter((e): e is HtmlEdge => e !== null);
 }
 
 function escapeHtml(s: string): string { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
