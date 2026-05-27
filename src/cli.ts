@@ -3,6 +3,7 @@ import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
 import { analyzeProject, renderOutput } from "./index.js";
+import { runWithTracing, traceToArchitecture } from "./analyzer/traceRunner.js";
 
 const DEF_EXCLUDE = "node_modules,dist,.git,build,coverage,__pycache__,.next,.nuxt,out,target,vendor";
 
@@ -31,6 +32,38 @@ program.command("analyze [rootDir]").description("Analyze a project and extract 
       if (!options.output) { process.stdout.write(output); if (format==="ascii") process.stdout.write("\n"); }
       else process.stderr.write("Output → "+output+"\n");
     } catch (err: unknown) { const msg = err instanceof Error ? err.message : String(err); process.stderr.write("Error: "+msg+"\n"); process.exit(1); }
+  });
+
+program.command("trace").description("Execute a command with tracing and show architecture data flow")
+  .option("-d, --dir <path>", "Working directory", process.cwd())
+  .option("-c, --cmd <command>", "Command to execute with tracing")
+  .action(async (options: Record<string,string>) => {
+    const command = options.cmd;
+    if (!command) { process.stderr.write("Error: --cmd is required\n"); process.exit(1); }
+    const workDir = path.resolve(options.dir);
+    process.stderr.write("Running with tracer: " + command + "\n");
+    process.stderr.write("Working dir: " + workDir + "\n\n");
+    try {
+      const { events, callGraph, dataFlow } = traceToArchitecture(workDir, command);
+      process.stderr.write(events.length + " trace events captured\n\n");
+
+      process.stdout.write("=== Call Graph ===\n");
+      for (const [file, funcs] of Object.entries(callGraph).slice(0, 15)) {
+        process.stdout.write("  " + file + ":\n");
+        for (const f of funcs.slice(0, 5)) process.stdout.write("    - " + f + "\n");
+      }
+
+      if (dataFlow.length > 0) {
+        process.stdout.write("\n=== Data Flow ===\n");
+        for (const df of dataFlow.slice(0, 20)) {
+          process.stdout.write("  " + df.from + " → " + df.to + " (" + df.data + ")\n");
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write("Error: " + msg + "\n");
+      process.exit(1);
+    }
   });
 
 program.parse();

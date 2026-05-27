@@ -3,6 +3,7 @@ import * as path from "path";
 import type { AnalyzerOptions, AnalysisResult, CodeSymbol, RawDependency } from "../types/index.js";
 import { scanProject } from "./scanner.js";
 import { extractSymbols } from "./parser.js";
+import { loadMemory, saveMemory, detectChanges, buildFileSnapshots } from "./memory.js";
 
 function extractImports(filePath: string, language: string): RawDependency[] {
   let content: string; try { content = fs.readFileSync(filePath, "utf-8"); } catch { return []; }
@@ -26,6 +27,15 @@ function extractImports(filePath: string, language: string): RawDependency[] {
 
 export function analyzeProject(options: AnalyzerOptions): AnalysisResult {
   const rootDir = path.resolve(options.rootDir);
+
+  const memory = loadMemory(rootDir);
+  if (memory) {
+    const { changed, added } = detectChanges(rootDir, memory);
+    if (changed.length === 0 && added.length === 0) {
+      return { ...memory.result, analyzedAt: new Date().toISOString() };
+    }
+  }
+
   const files = scanProject(options);
   const allSymbols: CodeSymbol[] = [];
   const allDeps: RawDependency[] = [];
@@ -36,5 +46,11 @@ export function analyzeProject(options: AnalyzerOptions): AnalysisResult {
   if (files.length === 0) issues.push({ severity: "warning", message: "No source code files found" });
   let projectName = path.basename(rootDir);
   try { const p = path.join(rootDir,"package.json"); if (fs.existsSync(p)) projectName = JSON.parse(fs.readFileSync(p,"utf-8")).name||projectName; } catch {}
-  return { projectRoot: rootDir, projectName, analyzedAt: new Date().toISOString(), symbols: allSymbols, components: [], dataFlows: [], stats, issues, rawDeps: allDeps };
+
+  const result: AnalysisResult = { projectRoot: rootDir, projectName, analyzedAt: new Date().toISOString(), symbols: allSymbols, components: [], dataFlows: [], stats, issues, rawDeps: allDeps };
+
+  const snapshots = buildFileSnapshots(rootDir, result);
+  saveMemory(rootDir, result, snapshots);
+
+  return result;
 }
