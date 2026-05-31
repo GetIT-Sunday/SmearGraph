@@ -1,7 +1,7 @@
 {
   "name": "smeargraph",
   "version": "1.0.0",
-  "description": "🖌️ Paint code architecture like Smeargle — scan source code, extract symbols, group components, trace data flows, render ASCII diagrams. Zero-config, AI-agent ready.",
+  "description": "🖌️ Paint code architecture like Smeargle — scan source code, extract symbols, group components, trace data flows, render ASCII/HTML diagrams, serve via MCP, enrich with LLM. Zero-config, AI-agent ready.",
   "main": "dist/index.js",
   "bin": {
     "smeargraph": "dist/cli.js"
@@ -29,7 +29,12 @@
     "developer-tools",
     "software-architecture",
     "reverse-engineering",
-    "documentation"
+    "documentation",
+    "knowledge-graph",
+    "mcp",
+    "mcp-server",
+    "llm",
+    "code-intelligence"
   ],
   "author": "GetIT-Sunday",
   "license": "MIT",

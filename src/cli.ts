@@ -10,7 +10,7 @@ const DEF_EXCLUDE = "node_modules,dist,.git,build,coverage,__pycache__,.next,.nu
 function readVersion(): string { try { return JSON.parse(fs.readFileSync(path.join(__dirname,"..","package.json"),"utf-8")).version||"1.0.0"; } catch { return "1.0.0"; } }
 
 const program = new Command();
-program.name("smeargraph").description("SmearGraph — analyze codebase and generate architecture visualizations").version(readVersion());
+program.name("smeargraph").description("SmearGraph — code architecture analysis, visualization and MCP server").version(readVersion());
 
 program.command("analyze [rootDir]").description("Analyze a project and extract symbols with dependencies")
   .option("-o, --output <path>", "Output file path")
@@ -64,6 +64,42 @@ program.command("trace").description("Execute a command with tracing and show ar
       process.stderr.write("Error: " + msg + "\n");
       process.exit(1);
     }
+  });
+
+program.command("init").description("Initialize .smeargraph/ cache dir and generate initial knowledge graph")
+  .option("-e, --exclude <patterns>", "Glob patterns to exclude", DEF_EXCLUDE)
+  .action(async (options: Record<string,string>) => {
+    const projectRoot = process.cwd();
+    const cacheDir = path.join(projectRoot, ".smeargraph");
+    fs.mkdirSync(cacheDir, { recursive: true });
+    process.stderr.write("Initialized .smeargraph/ cache directory\n");
+    const { analyzeProject } = await import("./analyzer/index.js");
+    const { buildKnowledgeGraph } = await import("./knowledge-graph/index.js");
+    const exclude = options.exclude.split(",").map((e:string)=>e.trim()).filter(Boolean);
+    const result = analyzeProject({ rootDir: projectRoot, exclude, maxDepth: 10, languages: [] });
+    const kg = buildKnowledgeGraph(result);
+    fs.writeFileSync(path.join(cacheDir, "knowledge-graph.json"), JSON.stringify(kg, null, 2));
+    process.stderr.write("Knowledge graph: "+kg.nodes.length+" nodes, "+kg.edges.length+" edges across "+(kg.layers?.length||1)+" layers\n");
+  });
+
+program.command("serve").description("Start MCP server on stdin/stdout")
+  .action(async () => {
+    process.stderr.write("SmearGraph MCP server starting (JSON-RPC 2.0 on stdin/stdout)...\n");
+    const { startServer } = await import("./mcp/index.js");
+    await startServer();
+  });
+
+program.command("enrich").description("Enrich knowledge graph with LLM-generated summaries and tags")
+  .option("-f, --force", "Re-enrich all nodes, ignoring cache", false)
+  .action(async (options: { force: boolean }) => {
+    const projectRoot = process.cwd();
+    const cachePath = path.join(projectRoot, ".smeargraph", "knowledge-graph.json");
+    if (!fs.existsSync(cachePath)) { process.stderr.write("No knowledge graph found. Run 'smeargraph init' first.\n"); process.exit(1); }
+    const kg = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
+    const { enrichKnowledgeGraph } = await import("./llm/enrich.js");
+    const result = await enrichKnowledgeGraph(kg);
+    fs.writeFileSync(cachePath, JSON.stringify(kg, null, 2));
+    process.stderr.write("Enriched: "+result.enriched+" enriched, "+result.cacheHits+" cache hits, "+result.skipped+" skipped, "+result.errors+" errors\n");
   });
 
 program.parse();
