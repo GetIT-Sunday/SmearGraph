@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { KnowledgeGraph, KGNode } from "../../types/index.js";
+import { formatImpactResult } from "../../utils/formatter.js";
 
 function loadKG(): KnowledgeGraph | null {
   const root = process.env.SMEARGRAPH_PROJECT_ROOT || process.cwd();
@@ -9,7 +10,7 @@ function loadKG(): KnowledgeGraph | null {
 
 export const handler = async (args: Record<string, unknown>) => {
   const kg = loadKG();
-  if (!kg) return { error: "No knowledge graph found" };
+  if (!kg) return { error: "No knowledge graph found. Run 'smeargraph init' first." };
   const query = (args.path as string || "").toLowerCase();
   const depth = (args.depth as number) || 2;
   if (!query) return { error: "path is required" };
@@ -40,5 +41,12 @@ export const handler = async (args: Record<string, unknown>) => {
   const count = affectedNodes.length;
   const risk = count > 20 ? "high" : count > 5 ? "medium" : "low";
 
-  return { affected: affectedNodes, affectedLayers: [...layers], risk, nodeCount: count };
+  const result = {
+    affected: affectedNodes.map(n => ({ name: n.name, type: n.type, filePath: n.filePath })),
+    affectedLayers: [...layers],
+    risk,
+    nodeCount: count,
+  };
+
+  return { markdown: formatImpactResult(result), ...result };
 };

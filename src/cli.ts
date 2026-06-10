@@ -80,6 +80,15 @@ program.command("init").description("Initialize .smeargraph/ cache dir and gener
     const kg = buildKnowledgeGraph(result);
     fs.writeFileSync(path.join(cacheDir, "knowledge-graph.json"), JSON.stringify(kg, null, 2));
     process.stderr.write("Knowledge graph: "+kg.nodes.length+" nodes, "+kg.edges.length+" edges across "+(kg.layers?.length||1)+" layers\n");
+
+    // SQLite migration
+    try {
+      const { migrateFromJson } = await import("./db/migrate.js");
+      migrateFromJson(projectRoot);
+      process.stderr.write("SQLite index created\n");
+    } catch (err) {
+      process.stderr.write("SQLite migration skipped: " + (err instanceof Error ? err.message : String(err)) + "\n");
+    }
   });
 
 program.command("serve").description("Start MCP server on stdin/stdout")

@@ -135,11 +135,18 @@ export function buildKnowledgeGraph(
   }
 
   // Dependency edges from rawDeps
+  const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs"];
   for (const dep of result.rawDeps) {
     const fromRel = dep.from.replace(result.projectRoot, "").replace(/^\//, "");
     const toRel = dep.to.startsWith(".") ? path.join(path.dirname(fromRel), dep.to) : dep.to;
     const fromId = `file:${fromRel}`;
-    const toId = `file:${toRel}`;
+    let toId = `file:${toRel}`;
+    if (!nodeMap.has(toId)) {
+      for (const ext of extensions) {
+        const candidate = `file:${toRel}${ext}`;
+        if (nodeMap.has(candidate)) { toId = candidate; break; }
+      }
+    }
     if (nodeMap.has(fromId) && nodeMap.has(toId)) {
       const eType = dep.kind === "call" ? "calls" : dep.kind === "inherit" ? "extends" : "imports";
       edges.push({ source: fromId, target: toId, type: eType, weight: 0.8 });
