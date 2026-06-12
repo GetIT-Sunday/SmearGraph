@@ -77,6 +77,45 @@ function adaptiveBudget(nodeCount: number): number {
   return 60000;
 }
 
+function buildFlowMap(kg: KnowledgeGraph, nodes: KGNode[]): string | null {
+  if (nodes.length < 2) return null;
+
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const projectRoot = process.env.SMEARGRAPH_PROJECT_ROOT || process.cwd();
+
+  const fileIds = new Set(nodes.map(n => {
+    if (!n.filePath) return null;
+    const relPath = n.filePath.replace(projectRoot, "").replace(/^\//, "");
+    return `file:${relPath}`;
+  }).filter(Boolean));
+
+  const calls: Array<{ from: string; to: string; type: string }> = [];
+
+  for (const edge of kg.edges) {
+    if (edge.type === "calls" || edge.type === "calls_async" || edge.type === "imports") {
+      const fromNode = kg.nodes.find(n => n.id === edge.source);
+      const toNode = kg.nodes.find(n => n.id === edge.target);
+
+      if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+        calls.push({ from: fromNode?.name || edge.source, to: toNode?.name || edge.target, type: edge.type });
+      } else if (fileIds.has(edge.source) || fileIds.has(edge.target)) {
+        const fromName = fromNode?.name || edge.source.replace("file:", "");
+        const toName = toNode?.name || edge.target.replace("file:", "");
+        calls.push({ from: fromName, to: toName, type: edge.type });
+      }
+    }
+  }
+
+  if (calls.length === 0) return null;
+
+  const uniqueCalls = calls.filter((c, i, arr) =>
+    arr.findIndex(x => x.from === c.from && x.to === c.to) === i
+  );
+
+  const lines = uniqueCalls.map(c => `${c.from} → ${c.to} (${c.type})`);
+  return `## Flow\n${lines.join("\n")}`;
+}
+
 export const handler = async (args: Record<string, unknown>) => {
   const kg = loadKG();
   if (!kg) return { error: "No knowledge graph found. Run 'smeargraph init' first." };
@@ -100,6 +139,11 @@ export const handler = async (args: Record<string, unknown>) => {
 
   sections.push(`## Explore: "${query}"`);
   sections.push(`(${matches.length} matches across ${grouped.size} files)\n`);
+
+  const flowMap = buildFlowMap(kg, matches);
+  if (flowMap) {
+    sections.push(flowMap);
+  }
 
   for (const [filePath, fileNodes] of grouped) {
     if (filesIncluded >= maxFiles) break;
