@@ -51,6 +51,32 @@ function groupByFile(nodes: KGNode[]): Map<string, KGNode[]> {
   return grouped;
 }
 
+function addLineNumbers(source: string, startLine: number = 1): string {
+  return source.split("\n").map((line, i) => {
+    const num = String(startLine + i).padStart(4);
+    return `${num}  ${line}`;
+  }).join("\n");
+}
+
+function getStalenessBanner(filePath: string, projectRoot: string): string | null {
+  try {
+    const fullPath = path.resolve(projectRoot, filePath);
+    const stat = fs.statSync(fullPath);
+    const age = Date.now() - stat.mtimeMs;
+    if (age > 5000) {
+      return `⚠️ File ${filePath} was edited ${(age / 1000).toFixed(1)}s ago — read directly for live content`;
+    }
+  } catch {}
+  return null;
+}
+
+function adaptiveBudget(nodeCount: number): number {
+  if (nodeCount < 200) return 15000;
+  if (nodeCount < 1000) return 25000;
+  if (nodeCount < 5000) return 40000;
+  return 60000;
+}
+
 export const handler = async (args: Record<string, unknown>) => {
   const kg = loadKG();
   if (!kg) return { error: "No knowledge graph found. Run 'smeargraph init' first." };
@@ -65,8 +91,15 @@ export const handler = async (args: Record<string, unknown>) => {
   const matches = searchNodesByTokens(kg, tokens, maxFiles * 3);
   const grouped = groupByFile(matches);
 
-  const output: Array<{ file: string; symbols: Array<{ name: string; type: string; line?: number }> }> = [];
+  const budget = adaptiveBudget(kg.nodes.length);
+  let totalChars = 0;
   let filesIncluded = 0;
+
+  const sections: string[] = [];
+  const staleFiles: string[] = [];
+
+  sections.push(`## Explore: "${query}"`);
+  sections.push(`(${matches.length} matches across ${grouped.size} files)\n`);
 
   for (const [filePath, fileNodes] of grouped) {
     if (filesIncluded >= maxFiles) break;
@@ -75,37 +108,43 @@ export const handler = async (args: Record<string, unknown>) => {
     let source = "";
     try { source = fs.readFileSync(fullPath, "utf-8"); } catch { continue; }
 
-    const lines = source.split("\n");
-    const symbols = fileNodes.map(n => {
-      const meta = n.metadata as Record<string, unknown> | undefined;
-      const startLine = (meta?.startLine as number) || 0;
-      return {
-        name: n.name,
-        type: n.type,
-        line: startLine,
-        signature: (meta?.signature as string) || "",
-        body: startLine > 0 ? lines.slice(startLine - 1, startLine + 20).join("\n") : "",
-      };
-    });
+    const staleness = getStalenessBanner(filePath, projectRoot);
+    if (staleness) staleFiles.push(staleness);
 
-    output.push({ file: filePath, symbols });
+    const lines = source.split("\n");
+    const symbolSections: string[] = [];
+
+    for (const n of fileNodes) {
+      const meta = n.metadata as Record<string, unknown> | undefined;
+      const startLine = (meta?.startLine as number) || (meta?.line as number) || 0;
+      const endLine = (meta?.endLine as number) || Math.min(startLine + 20, lines.length);
+
+      if (startLine > 0 && startLine <= lines.length) {
+        const codeBlock = lines.slice(startLine - 1, endLine).join("\n");
+        const numbered = addLineNumbers(codeBlock, startLine);
+        symbolSections.push(`### ${n.name} (${n.type})\n\`\`\`\n${numbered}\n\`\`\``);
+      } else {
+        symbolSections.push(`### ${n.name} (${n.type})\n*No source available*`);
+      }
+    }
+
+    const fileSection = `#### ${filePath}\n${symbolSections.join("\n\n")}`;
+    const sectionChars = fileSection.length;
+
+    if (totalChars + sectionChars > budget && filesIncluded > 0) {
+      sections.push(`\n*${grouped.size - filesIncluded} more files not shown*`);
+      break;
+    }
+
+    sections.push(fileSection);
+    totalChars += sectionChars;
     filesIncluded++;
   }
 
-  const budget = kg.nodes.length < 200 ? 30000 : kg.nodes.length < 2000 ? 50000 : 80000;
-  let totalChars = 0;
-  const truncated = output.filter(item => {
-    const itemChars = JSON.stringify(item).length;
-    if (totalChars + itemChars > budget) return false;
-    totalChars += itemChars;
-    return true;
-  });
+  if (staleFiles.length > 0) {
+    sections.push("\n---");
+    sections.push(staleFiles.join("\n"));
+  }
 
-  return {
-    query,
-    tokens,
-    filesShown: truncated.length,
-    totalMatches: matches.length,
-    results: truncated,
-  };
+  return { markdown: sections.join("\n\n") };
 };
